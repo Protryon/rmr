@@ -1,9 +1,9 @@
-FROM debian:buster-slim AS installer
+FROM debian:bookworm-slim AS installer
 WORKDIR /runtime
 
 RUN apt-get update && apt-get install libssl1.1 ca-certificates libwebpmux3 ffmpeg -y && rm -rf /var/lib/apt/lists/*
 
-FROM lukemathwalker/cargo-chef:0.1.61-rust-1.70-slim-buster AS planner
+FROM lukemathwalker/cargo-chef:0.1.61-rust-1.70-slim-bookworm AS planner
 WORKDIR /plan
 
 COPY ./src ./src
@@ -12,7 +12,7 @@ COPY ./Cargo.toml .
 
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM lukemathwalker/cargo-chef:0.1.61-rust-1.70-buster AS builder
+FROM lukemathwalker/cargo-chef:0.1.61-rust-1.70-bookworm AS builder
 
 WORKDIR /build
 RUN apt-get update && apt-get install cmake -y

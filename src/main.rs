@@ -1,5 +1,6 @@
+use axum::Router;
 use clap::Parser;
-use config::{CameraMode, CONFIG, CameraConfig};
+use config::{CameraConfig, CameraMode, CONFIG};
 use image::RgbImage;
 use log::{debug, error, info, trace};
 use modect::{MotionDetectionState, RunningMotionDetector};
@@ -14,7 +15,10 @@ use std::{
 };
 use tokio::sync::mpsc;
 
-use crate::{pushover::{alert_event, AlertState}, event::EventMetadata};
+use crate::{
+    event::EventMetadata,
+    pushover::{alert_event, AlertState},
+};
 
 mod config;
 mod event;
@@ -93,8 +97,12 @@ async fn main() {
         async fn run() -> anyhow::Result<()> {
             let server = axum::Server::bind(&CONFIG.web_bind);
             info!("listening @ {}", CONFIG.web_bind);
+            let mut routes = web::route();
+            if let Some(web_base) = &CONFIG.web_base {
+                routes = Router::new().nest(web_base, routes);
+            }
             server
-                .serve(web::route().into_make_service_with_connect_info::<SocketAddr>())
+                .serve(routes.into_make_service_with_connect_info::<SocketAddr>())
                 .await?;
             Ok(())
         }
@@ -110,7 +118,6 @@ async fn main() {
 
     for (name, camera) in &CONFIG.cameras {
         tasks.push(tokio::spawn(async move {
-
             match camera.mode {
                 CameraMode::Disable => return,
                 CameraMode::Record => {
@@ -127,13 +134,15 @@ async fn main() {
                             image_width: camera.motion_detection.as_ref().map(|x| x.width),
                             image_height: camera.motion_detection.as_ref().map(|x| x.height),
                             record_single_jpeg: false,
-                        }.run().await;
+                        }
+                        .run()
+                        .await;
                         if let Err(e) = out {
                             error!("ffmpeg failed for camera {name}: {e}");
                         }
                         tokio::time::sleep(Duration::from_secs(1)).await;
                     }
-                },
+                }
                 CameraMode::MotionDetect => {
                     let sender = start_monitor(&name, camera).await;
 
@@ -146,13 +155,15 @@ async fn main() {
                             image_width: camera.motion_detection.as_ref().map(|x| x.width),
                             image_height: camera.motion_detection.as_ref().map(|x| x.height),
                             record_single_jpeg: false,
-                        }.run().await;
+                        }
+                        .run()
+                        .await;
                         if let Err(e) = out {
                             error!("ffmpeg failed for camera {name}: {e}");
                         }
                         tokio::time::sleep(Duration::from_secs(1)).await;
                     }
-                },
+                }
                 CameraMode::MotionDetectRecord => {
                     let sender = start_monitor(&name, camera).await;
                     let mut recording_dir = CONFIG.recording_dir.clone();
@@ -168,13 +179,15 @@ async fn main() {
                             image_width: camera.motion_detection.as_ref().map(|x| x.width),
                             image_height: camera.motion_detection.as_ref().map(|x| x.height),
                             record_single_jpeg: false,
-                        }.run().await;
+                        }
+                        .run()
+                        .await;
                         if let Err(e) = out {
                             error!("ffmpeg failed for camera {name}: {e}");
                         }
                         tokio::time::sleep(Duration::from_secs(1)).await;
                     }
-                },
+                }
             }
         }));
     }
@@ -198,54 +211,117 @@ async fn start_monitor(name: &str, camera: &CameraConfig) -> mpsc::Sender<RgbIma
     tokio::spawn(async move {
         while let Some(new_frame) = receiver.recv().await {
             let stats = motion_detector.frame_recv(new_frame);
-            debug!("{camera_name}: f#{} score={:.02}, stddev = {:.02}", stats.frame_number, stats.change, stats.stddev);
-            FRAME_COUNTER.with_label_values(&[&camera_name]).set(stats.frame_number as i64);
-            MODECT_CHANGE.with_label_values(&[&camera_name]).inc_by(stats.change);
-            MODECT_STDDEV.with_label_values(&[&camera_name]).inc_by(stats.stddev);
+            debug!(
+                "{camera_name}: f#{} score={:.02}, stddev = {:.02}",
+                stats.frame_number, stats.change, stats.stddev
+            );
+            FRAME_COUNTER
+                .with_label_values(&[&camera_name])
+                .set(stats.frame_number as i64);
+            MODECT_CHANGE
+                .with_label_values(&[&camera_name])
+                .inc_by(stats.change);
+            MODECT_STDDEV
+                .with_label_values(&[&camera_name])
+                .inc_by(stats.stddev);
             for (time, state) in motion_detector.drain_pending_states() {
-                MODECT_STATE.with_label_values(&[&camera_name]).set(state.discriminant() as i64);
+                MODECT_STATE
+                    .with_label_values(&[&camera_name])
+                    .set(state.discriminant() as i64);
                 match state {
                     MotionDetectionState::Idle { frame_number } => {
                         trace!("{camera_name}: f#{frame_number} idle");
-                    },
+                    }
                     MotionDetectionState::Rejected { event } => {
                         MODECT_REJECT.with_label_values(&[&camera_name]).inc();
-                        MODECT_REJECT_SCORE.with_label_values(&[&camera_name]).observe(event.total_score);
-                        MODECT_LAST_REJECT.with_label_values(&[&camera_name]).set(event.end_stream_frame_number as i64);
-                        info!("{camera_name}: f#{} -> f#{} rejected ({} frames, {:.02} score)", event.start_stream_frame_number, event.end_stream_frame_number, event.frames.len(), event.total_score);
-                    },
-                    MotionDetectionState::WaitAndSee { start_frame_number, current_frame_number, current_score } => {
+                        MODECT_REJECT_SCORE
+                            .with_label_values(&[&camera_name])
+                            .observe(event.total_score);
+                        MODECT_LAST_REJECT
+                            .with_label_values(&[&camera_name])
+                            .set(event.end_stream_frame_number as i64);
+                        info!(
+                            "{camera_name}: f#{} -> f#{} rejected ({} frames, {:.02} score)",
+                            event.start_stream_frame_number,
+                            event.end_stream_frame_number,
+                            event.frames.len(),
+                            event.total_score
+                        );
+                    }
+                    MotionDetectionState::WaitAndSee {
+                        start_frame_number,
+                        current_frame_number,
+                        current_score,
+                    } => {
                         debug!("{camera_name}: f#{start_frame_number} -> f#{current_frame_number} wait_and_see ({:.02} score)", current_score);
-                    },
-                    MotionDetectionState::Active { start_frame_number, current_frame_number, current_score } => {
+                    }
+                    MotionDetectionState::Active {
+                        start_frame_number,
+                        current_frame_number,
+                        current_score,
+                    } => {
                         info!("{camera_name}: f#{start_frame_number} -> f#{current_frame_number} active ({:.02} score)", current_score);
-                    },
-                    MotionDetectionState::Followup { start_frame_number, current_frame_number, current_score } => {
+                    }
+                    MotionDetectionState::Followup {
+                        start_frame_number,
+                        current_frame_number,
+                        current_score,
+                    } => {
                         debug!("{camera_name}: f#{start_frame_number} -> f#{current_frame_number} followup ({:.02} score)", current_score);
-                    },
+                    }
                     MotionDetectionState::ConfirmedInProgress { event } => {
                         MODECT_CONFIRM.with_label_values(&[&camera_name]).inc();
 
-                        info!("{camera_name}: f#{} -> f#{} confirmed ({} frames, {:.02} score)", event.start_stream_frame_number, event.end_stream_frame_number, event.frames.len(), event.total_score);
+                        info!(
+                            "{camera_name}: f#{} -> f#{} confirmed ({} frames, {:.02} score)",
+                            event.start_stream_frame_number,
+                            event.end_stream_frame_number,
+                            event.frames.len(),
+                            event.total_score
+                        );
 
                         let event = Arc::new(event);
                         let camera_name = camera_name.clone();
                         tokio::spawn(async move {
                             let start = Instant::now();
-                            alert_event(time, event, camera_alert_priority, &camera_name, frame_rate, AlertState::Confirmed).await;
+                            alert_event(
+                                time,
+                                event,
+                                camera_alert_priority,
+                                &camera_name,
+                                frame_rate,
+                                AlertState::Confirmed,
+                            )
+                            .await;
                             let ms = start.elapsed().as_secs_f64() * 1000.0;
-                            MODECT_ALERT_LATENCY.with_label_values(&[&camera_name]).inc_by(ms);
+                            MODECT_ALERT_LATENCY
+                                .with_label_values(&[&camera_name])
+                                .inc_by(ms);
                             MODECT_ALERT_COUNT.with_label_values(&[&camera_name]).inc();
                             info!("Alert sent in {ms:.02} ms");
                         });
-                    },
-                    MotionDetectionState::Completed { was_confirmed_already, event } => {
+                    }
+                    MotionDetectionState::Completed {
+                        was_confirmed_already,
+                        event,
+                    } => {
                         MODECT_COMPLETE.with_label_values(&[&camera_name]).inc();
-                        MODECT_COMPLETE_SCORE.with_label_values(&[&camera_name]).observe(event.total_score);
-                        MODECT_LAST_COMPLETE.with_label_values(&[&camera_name]).set(event.end_stream_frame_number as i64);
+                        MODECT_COMPLETE_SCORE
+                            .with_label_values(&[&camera_name])
+                            .observe(event.total_score);
+                        MODECT_LAST_COMPLETE
+                            .with_label_values(&[&camera_name])
+                            .set(event.end_stream_frame_number as i64);
 
-                        info!("{camera_name}: f#{} -> f#{} completed ({} frames, {:.02} score)", event.start_stream_frame_number, event.end_stream_frame_number, event.frames.len(), event.total_score);
-                        let event_path = motion_detect_dir.join(&format!("{}_{}.mp4", camera_name, time));
+                        info!(
+                            "{camera_name}: f#{} -> f#{} completed ({} frames, {:.02} score)",
+                            event.start_stream_frame_number,
+                            event.end_stream_frame_number,
+                            event.frames.len(),
+                            event.total_score
+                        );
+                        let event_path =
+                            motion_detect_dir.join(&format!("{}_{}.mp4", camera_name, time));
 
                         let metadata = EventMetadata {
                             camera: camera_name.clone(),
@@ -260,25 +336,42 @@ async fn start_monitor(name: &str, camera: &CameraConfig) -> mpsc::Sender<RgbIma
                         let camera_name = camera_name.clone();
                         tokio::spawn(async move {
                             let start = Instant::now();
-                            alert_event(time, event2, camera_alert_priority, &camera_name, frame_rate, if was_confirmed_already {
-                                AlertState::CompletedAfterConfirm
-                            } else {
-                                AlertState::Completed
-                            }).await;
+                            alert_event(
+                                time,
+                                event2,
+                                camera_alert_priority,
+                                &camera_name,
+                                frame_rate,
+                                if was_confirmed_already {
+                                    AlertState::CompletedAfterConfirm
+                                } else {
+                                    AlertState::Completed
+                                },
+                            )
+                            .await;
                             let ms = start.elapsed().as_secs_f64() * 1000.0;
-                            MODECT_ALERT_LATENCY.with_label_values(&[&camera_name]).inc_by(ms);
+                            MODECT_ALERT_LATENCY
+                                .with_label_values(&[&camera_name])
+                                .inc_by(ms);
                             MODECT_ALERT_COUNT.with_label_values(&[&camera_name]).inc();
                             info!("Alert sent in {ms:.02} ms");
                         });
                         tokio::spawn(async move {
-                            if let Err(e) = tokio::fs::write(&event_path.with_extension("json"), serde_json::to_string(&metadata).unwrap()).await {
+                            if let Err(e) = tokio::fs::write(
+                                &event_path.with_extension("json"),
+                                serde_json::to_string(&metadata).unwrap(),
+                            )
+                            .await
+                            {
                                 error!("failed to save event metadata to disk: {e}");
                             }
-                            if let Err(e) = modect_mp4::modect_mp4(&event, frame_rate as u32, &event_path).await {
+                            if let Err(e) =
+                                modect_mp4::modect_mp4(&event, frame_rate as u32, &event_path).await
+                            {
                                 error!("failed to save event to disk: {e:#}");
                             }
                         });
-                    },
+                    }
                 }
             }
         }

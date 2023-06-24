@@ -14,6 +14,7 @@ fn default_ffmpeg_bin() -> String {
 pub struct Config {
     pub prometheus_bind: Option<SocketAddr>,
     pub web_bind: SocketAddr,
+    pub web_base: Option<String>,
     pub cameras: IndexMap<String, CameraConfig>,
     #[serde(default = "default_ffmpeg_bin")]
     pub ffmpeg_bin: String,
