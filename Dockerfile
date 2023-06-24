@@ -27,6 +27,6 @@ WORKDIR /runtime
 
 COPY --from=builder /build/target/rmr /runtime/rmr
 
-RUN apt-get update && apt-get install libssl1.1 ca-certificates libwebpmux3 -y && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install libssl1.1 ca-certificates libwebpmux3 ffmpeg -y && rm -rf /var/lib/apt/lists/*
 
 ENTRYPOINT ["/runtime/rmr"]
