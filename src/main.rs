@@ -14,7 +14,7 @@ use std::{
 };
 use tokio::sync::mpsc;
 
-use crate::pushover::{alert_event, AlertState};
+use crate::{pushover::{alert_event, AlertState}, event::EventMetadata};
 
 mod config;
 mod event;
@@ -247,6 +247,14 @@ async fn start_monitor(name: &str, camera: &CameraConfig) -> mpsc::Sender<RgbIma
                         info!("{camera_name}: f#{} -> f#{} completed ({} frames, {:.02} score)", event.start_stream_frame_number, event.end_stream_frame_number, event.frames.len(), event.total_score);
                         let event_path = motion_detect_dir.join(&format!("{}_{}.mp4", camera_name, time));
 
+                        let metadata = EventMetadata {
+                            camera: camera_name.clone(),
+                            when: time,
+                            total_score: event.total_score,
+                            start_stream_frame_number: event.start_stream_frame_number,
+                            end_stream_frame_number: event.end_stream_frame_number,
+                        };
+
                         let event = Arc::new(event);
                         let event2 = event.clone();
                         let camera_name = camera_name.clone();
@@ -263,6 +271,9 @@ async fn start_monitor(name: &str, camera: &CameraConfig) -> mpsc::Sender<RgbIma
                             info!("Alert sent in {ms:.02} ms");
                         });
                         tokio::spawn(async move {
+                            if let Err(e) = tokio::fs::write(&event_path.with_extension("json"), serde_json::to_string(&metadata).unwrap()).await {
+                                error!("failed to save event metadata to disk: {e}");
+                            }
                             if let Err(e) = modect_mp4::modect_mp4(&event, frame_rate as u32, &event_path).await {
                                 error!("failed to save event to disk: {e:#}");
                             }
