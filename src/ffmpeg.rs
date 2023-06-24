@@ -19,6 +19,7 @@ pub struct FFmpegConfig {
     pub send_images: Option<mpsc::Sender<RgbImage>>,
     pub image_width: Option<u32>,
     pub image_height: Option<u32>,
+    pub force_tcp: bool,
 }
 
 #[derive(Debug, Error)]
@@ -99,7 +100,7 @@ impl FFmpegConfig {
         info!("Running '{ffprobe}' as ffprobe binary");
         let ffprobe_out = Command::new(&ffprobe)
             .arg(&self.rtsp_input.as_str())
-            .args(["-of", "json", "-show_streams"])
+            .args(["-rtsp_transport", "tcp", "-of", "json", "-show_streams"])
             .output()
             .await?;
         let ffprobe_out: FFProbeStreams =
@@ -127,6 +128,9 @@ impl FFmpegConfig {
         let dimension = format!("{}x{}", width_out, height_out);
 
         let mut ffmpeg_args = vec![];
+        if self.force_tcp {
+            ffmpeg_args.extend(["-rtsp_transport", "tcp"]);
+        }
         let mut recording_format = self.recording_mp4_dir.clone();
         if let Some(recording_format) = &mut recording_format {
             if self.record_single_jpeg {

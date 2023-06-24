@@ -81,6 +81,7 @@ async fn main() {
                 image_width: camera.motion_detection.as_ref().map(|x| x.width),
                 image_height: camera.motion_detection.as_ref().map(|x| x.height),
                 record_single_jpeg: true,
+                force_tcp: CONFIG.force_tcp,
             }
             .run()
             .await
@@ -134,6 +135,7 @@ async fn main() {
                             image_width: camera.motion_detection.as_ref().map(|x| x.width),
                             image_height: camera.motion_detection.as_ref().map(|x| x.height),
                             record_single_jpeg: false,
+                            force_tcp: CONFIG.force_tcp,
                         }
                         .run()
                         .await;
@@ -155,6 +157,7 @@ async fn main() {
                             image_width: camera.motion_detection.as_ref().map(|x| x.width),
                             image_height: camera.motion_detection.as_ref().map(|x| x.height),
                             record_single_jpeg: false,
+                            force_tcp: CONFIG.force_tcp,
                         }
                         .run()
                         .await;
@@ -179,6 +182,7 @@ async fn main() {
                             image_width: camera.motion_detection.as_ref().map(|x| x.width),
                             image_height: camera.motion_detection.as_ref().map(|x| x.height),
                             record_single_jpeg: false,
+                            force_tcp: CONFIG.force_tcp,
                         }
                         .run()
                         .await;

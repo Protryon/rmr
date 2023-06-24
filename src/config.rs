@@ -21,6 +21,9 @@ pub struct Config {
     pub recording_dir: PathBuf,
     pub event_dir: PathBuf,
     pub live_dir: PathBuf,
+    // if true, ffmpeg is forced to use TCP (useful on k8s)
+    #[serde(default)]
+    pub force_tcp: bool,
     pub pushover: Option<PushoverConfig>,
 }
 
