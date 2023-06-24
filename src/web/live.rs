@@ -37,7 +37,7 @@ async fn start_hls_manager(camera: &'static CameraConfig) -> ApiResult<Uuid> {
         }
     });
 
-    tokio::time::timeout(Duration::from_secs(5), async move {
+    tokio::time::timeout(Duration::from_secs(15), async move {
         loop {
             match tokio::fs::try_exists(&path).await {
                 Err(e) => {
@@ -57,13 +57,25 @@ async fn hls_manager(uuid: Uuid, camera: &CameraConfig, notify: Arc<Notify>) -> 
     let path = CONFIG.live_dir.join(uuid.to_string());
     tokio::fs::create_dir_all(&path).await?;
     let playlist = path.join("playlist.m3u8");
+    let mut args = vec![];
+    if CONFIG.force_tcp {
+        args.extend(["-rtsp_transport", "tcp"]);
+    }
+    let rtsp = camera.rtsp.to_string();
+    let frame_rate = (camera.frame_rate as usize).to_string();
+    args.extend([
+        "-i",
+        &rtsp,
+        "-flags",
+        "+cgop",
+        "-g",
+        &frame_rate,
+        "-hls_time",
+        "1",
+        playlist.to_str().unwrap(),
+    ]);
     let mut process = Command::new(&CONFIG.ffmpeg_bin)
-        .arg("-i")
-        .arg(&camera.rtsp.to_string())
-        .args(&["-flags", "+cgop", "-g"])
-        .arg((camera.frame_rate as usize).to_string())
-        .args(&["-hls_time", "1"])
-        .arg(&playlist)
+        .args(args)
         .stderr(Stdio::piped())
         .spawn()?;
     let stderr = process.stderr.take().unwrap();
@@ -125,7 +137,7 @@ pub async fn page(Path(name): Path<String>) -> ApiResult<Response> {
         </head>
         <body>
             <div>
-                {name} <a href="/">Home</a> <a href="/camera/{name}">Recordings</a>
+                {name} <a href="{0}">Home</a> <a href="{0}camera/{name}">Recordings</a>
             </div>
             <video id="video" autoplay controls muted></video>
             <script>
@@ -145,7 +157,8 @@ pub async fn page(Path(name): Path<String>) -> ApiResult<Response> {
       
         </body>
         </html>
-    "#
+    "#,
+        CONFIG.web_base
     );
 
     Ok(Response::builder()

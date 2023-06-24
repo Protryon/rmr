@@ -10,11 +10,16 @@ fn default_ffmpeg_bin() -> String {
     "ffmpeg".to_string()
 }
 
+fn default_web_base() -> String {
+    "/".to_string()
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub prometheus_bind: Option<SocketAddr>,
     pub web_bind: SocketAddr,
-    pub web_base: Option<String>,
+    #[serde(default = "default_web_base")]
+    pub web_base: String,
     pub cameras: IndexMap<String, CameraConfig>,
     #[serde(default = "default_ffmpeg_bin")]
     pub ffmpeg_bin: String,

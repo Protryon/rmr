@@ -19,7 +19,7 @@ pub async fn list_events() -> ApiResult<Response> {
     });
     out.push(html! {
         <div>
-            <a href="/">{ text!("Home") }</a>
+            <a href={&CONFIG.web_base}>{ text!("Home") }</a>
         </div>
     });
     let mut read_dir = tokio::fs::read_dir(&CONFIG.event_dir).await?;
@@ -38,7 +38,7 @@ pub async fn list_events() -> ApiResult<Response> {
     for (metadata, filename) in entries {
         out.push(html! {
             <div>
-                <a href={format!("/event/{filename}")}>{ text!("{}", filename) }</a>
+                <a href={format!("{}event/{filename}", CONFIG.web_base)}>{ text!("{}", filename) }</a>
                 {text!(": {} score, {} frames in {}", metadata.total_score, metadata.end_stream_frame_number.saturating_sub(metadata.start_stream_frame_number), metadata.camera) }
             </div>
         });

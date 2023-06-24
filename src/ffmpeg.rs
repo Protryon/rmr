@@ -99,8 +99,9 @@ impl FFmpegConfig {
         let ffprobe = self.binary.replace("ffmpeg", "ffprobe");
         info!("Running '{ffprobe}' as ffprobe binary");
         let ffprobe_out = Command::new(&ffprobe)
+            .args(["-rtsp_transport", "tcp"])
             .arg(&self.rtsp_input.as_str())
-            .args(["-rtsp_transport", "tcp", "-of", "json", "-show_streams"])
+            .args(["-of", "json", "-show_streams"])
             .output()
             .await?;
         let ffprobe_out: FFProbeStreams =
@@ -131,6 +132,7 @@ impl FFmpegConfig {
         if self.force_tcp {
             ffmpeg_args.extend(["-rtsp_transport", "tcp"]);
         }
+        ffmpeg_args.extend(["-i", &self.rtsp_input.as_ref()]);
         let mut recording_format = self.recording_mp4_dir.clone();
         if let Some(recording_format) = &mut recording_format {
             if self.record_single_jpeg {
@@ -169,15 +171,8 @@ impl FFmpegConfig {
             ffmpeg_args.extend(["-f", "rawvideo", "-pix_fmt", "rgb24", "-s", &dimension, "-"])
         }
 
-        info!(
-            "ffmpeg: {} -i {} {}",
-            self.binary,
-            self.rtsp_input,
-            ffmpeg_args.join(" ")
-        );
+        info!("ffmpeg: {} {}", self.binary, ffmpeg_args.join(" "));
         let mut ffmpeg_process = Command::new(&self.binary)
-            .arg("-i")
-            .arg(&self.rtsp_input.as_ref())
             .args(&ffmpeg_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

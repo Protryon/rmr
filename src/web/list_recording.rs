@@ -31,29 +31,31 @@ pub async fn list_recording(Path(name): Path<String>) -> ApiResult<Response> {
     });
     out.push(html! {
         <div>
-            <a href="/">{ text!("Home") }</a>
+            <a href={&CONFIG.web_base}>{ text!("Home") }</a>
         </div>
     });
     out.push(html! {
         <div>
-            <a href={format!("/camera/{name}/live")}>{ text!("Live") }</a>
+            <a href={format!("{}camera/{name}/live", CONFIG.web_base)}>{ text!("Live") }</a>
         </div>
     });
-    let mut read_dir = tokio::fs::read_dir(&recording_dir).await?;
     let mut entries = vec![];
-    while let Some(entry) = read_dir.next_entry().await? {
-        let filename = entry.file_name().to_string_lossy().into_owned();
-        if !filename.ends_with(".mp4") {
-            continue;
+    if tokio::fs::try_exists(&recording_dir).await? {
+        let mut read_dir = tokio::fs::read_dir(&recording_dir).await?;
+        while let Some(entry) = read_dir.next_entry().await? {
+            let filename = entry.file_name().to_string_lossy().into_owned();
+            if !filename.ends_with(".mp4") {
+                continue;
+            }
+            let modified: DateTime<Utc> = entry.metadata().await?.modified()?.into();
+            entries.push((modified, filename));
         }
-        let modified: DateTime<Utc> = entry.metadata().await?.modified()?.into();
-        entries.push((modified, filename));
     }
     entries.sort_by_key(|x| x.0);
     for (modified, filename) in entries {
         out.push(html! {
             <div>
-                <a href={format!("/camera/{name}/video/{filename}")}>{ text!("{} -> {}", modified, filename) }</a>
+                <a href={format!("{}camera/{name}/video/{filename}", CONFIG.web_base)}>{ text!("{} -> {}", modified, filename) }</a>
             </div>
         });
     }

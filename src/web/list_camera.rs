@@ -14,7 +14,7 @@ pub async fn list_camera() -> ApiResult<Response> {
 
     out.push(html! {
         <div>
-            <a href={format!("/events")}>{ text!("Events") }</a>
+            <a href={format!("{}events", CONFIG.web_base)}>{ text!("Events") }</a>
         </div>
     });
     for (name, camera) in &CONFIG.cameras {
@@ -23,8 +23,8 @@ pub async fn list_camera() -> ApiResult<Response> {
         }
         out.push(html! {
             <div>
-                {text!("{}: ", name)} <a href={format!("/camera/{name}/live")}>{ text!("Live") }</a>
-                <a href={format!("/camera/{name}")} style="margin-left: 30px">{ text!("Recordings") }</a>
+                {text!("{}: ", name)} <a href={format!("{}camera/{name}/live", CONFIG.web_base)}>{ text!("Live") }</a>
+                <a href={format!("{}camera/{name}", CONFIG.web_base)} style="margin-left: 30px">{ text!("Recordings") }</a>
             </div>
         });
     }

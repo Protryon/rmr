@@ -98,10 +98,7 @@ async fn main() {
         async fn run() -> anyhow::Result<()> {
             let server = axum::Server::bind(&CONFIG.web_bind);
             info!("listening @ {}", CONFIG.web_bind);
-            let mut routes = web::route();
-            if let Some(web_base) = &CONFIG.web_base {
-                routes = Router::new().nest(web_base, routes);
-            }
+            let routes = Router::new().nest(&CONFIG.web_base, web::route());
             server
                 .serve(routes.into_make_service_with_connect_info::<SocketAddr>())
                 .await?;
