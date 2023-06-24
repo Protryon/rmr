@@ -1,7 +1,7 @@
 FROM debian:bookworm-slim AS installer
 WORKDIR /runtime
 
-RUN apt-get update && apt-get install libssl1.1 ca-certificates libwebpmux3 ffmpeg -y && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install libssl3 ca-certificates libwebpmux3 ffmpeg -y && rm -rf /var/lib/apt/lists/*
 
 FROM lukemathwalker/cargo-chef:0.1.61-rust-1.70-slim-bookworm AS planner
 WORKDIR /plan
