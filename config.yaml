@@ -1,0 +1,37 @@
+prometheus_bind: 0.0.0.0:9277
+web_bind: 0.0.0.0:10270
+live_dir: /run/rmr
+cameras:
+  left_driveway:
+    rtsp: rtsp://user:pass@192.168.64.11:554/live/main
+    mode: motion_detect
+    motion_detection:
+      width: 640
+      height: 480
+      change_minimum: 200.0
+      change_maximum: 100000.0
+      stddev_minimum: 100.0
+      minimum_frame_count: 25
+      minimum_total_change: 10000.0
+      followup_frame_count: 25
+      maximum_frame_wait: 0
+      # mask_file: ./left_driveway_mask.png
+  right_driveway:
+    rtsp: rtsp://user:pass@192.168.64.12:554/live/main
+    mode: motion_detect
+    motion_detection:
+      width: 640
+      height: 480
+      change_minimum: 200.0
+      change_maximum: 100000.0
+      stddev_minimum: 100.0
+      minimum_frame_count: 25
+      minimum_total_change: 10000.0
+      followup_frame_count: 25
+      maximum_frame_wait: 0
+      # mask_file: ./right_driveway_mask.png
+recording_dir: recording
+motion_detect_dir: md
+pushover:
+  user_key: a_pushover_key
+  token: a_pushover_token
