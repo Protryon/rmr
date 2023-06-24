@@ -1,3 +1,8 @@
+FROM debian:buster-slim AS installer
+WORKDIR /runtime
+
+RUN apt-get update && apt-get install libssl1.1 ca-certificates libwebpmux3 ffmpeg -y && rm -rf /var/lib/apt/lists/*
+
 FROM lukemathwalker/cargo-chef:0.1.61-rust-1.70-slim-buster AS planner
 WORKDIR /plan
 
@@ -22,11 +27,9 @@ COPY ./Cargo.toml .
 
 RUN cargo build --release -p rmr && mv /build/target/release/rmr /build/target/rmr
 
-FROM debian:buster-slim
+FROM installer
 WORKDIR /runtime
 
 COPY --from=builder /build/target/rmr /runtime/rmr
-
-RUN apt-get update && apt-get install libssl1.1 ca-certificates libwebpmux3 ffmpeg -y && rm -rf /var/lib/apt/lists/*
 
 ENTRYPOINT ["/runtime/rmr"]
