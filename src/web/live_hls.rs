@@ -70,6 +70,8 @@ async fn hls_manager(uuid: Uuid, camera: &CameraConfig, notify: Arc<Notify>) -> 
         "+cgop",
         "-g",
         &frame_rate,
+        "-c:v",
+        "copy",
         "-hls_time",
         "1",
         playlist.to_str().unwrap(),
@@ -148,7 +150,7 @@ pub async fn page(Path(name): Path<String>) -> ApiResult<Response> {
                     hls.attachMedia(video);
                     hls.on(Hls.Events.MEDIA_ATTACHED, function () {{
                         console.log("video and hls.js are now bound together !");
-                        hls.loadSource("./live/{uuid}/playlist.m3u8");
+                        hls.loadSource("./live_hls/{uuid}/playlist.m3u8");
                         hls.on(Hls.Events.MANIFEST_PARSED, function (event, data) {{
                         }});
                     }});
@@ -195,7 +197,7 @@ pub async fn stream(
     if path.contains("/") || path.contains("..") {
         return Err(ApiError::BadRequest("malformed path".to_string()));
     }
-    let filepath = CONFIG.live_dir.join(uuid.to_string()).join(path);
+    let filepath = CONFIG.live_dir.join(uuid.to_string()).join(&path);
 
     if !tokio::fs::try_exists(&filepath).await? {
         return Err(ApiError::NotFound);
@@ -205,14 +207,16 @@ pub async fn stream(
 
     let stream = ReaderStream::new(stream);
 
-    tokio::spawn(async move {
-        if let Err(e) = tokio::fs::remove_file(&filepath).await {
-            error!(
-                "failed to unlink stream fragment '{}': {e}",
-                filepath.display()
-            );
-        }
-    });
+    if path != "playlist.m3u8" {
+        tokio::spawn(async move {
+            if let Err(e) = tokio::fs::remove_file(&filepath).await {
+                error!(
+                    "failed to unlink stream fragment '{}': {e}",
+                    filepath.display()
+                );
+            }
+        });
+    }
 
     //todo: content types?
     Ok(

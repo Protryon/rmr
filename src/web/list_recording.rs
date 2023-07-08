@@ -36,7 +36,8 @@ pub async fn list_recording(Path(name): Path<String>) -> ApiResult<Response> {
     });
     out.push(html! {
         <div>
-            <a href={format!("{}camera/{name}/live", CONFIG.web_base)}>{ text!("Live") }</a>
+            <a href={format!("{}camera/{name}/live_hls", CONFIG.web_base)}>{ text!("Live (HLS)") }</a>
+            <a href={format!("{}camera/{name}/live_mp4", CONFIG.web_base)} style="margin-left: 30px">{ text!("Live (MP4)") }</a>
         </div>
     });
     let mut entries = vec![];

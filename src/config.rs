@@ -25,6 +25,7 @@ pub struct Config {
     pub ffmpeg_bin: String,
     pub recording_dir: PathBuf,
     pub event_dir: PathBuf,
+    /// Live dir for HLS streaming (should be a ramdisk)
     pub live_dir: PathBuf,
     // if true, ffmpeg is forced to use TCP (useful on k8s)
     #[serde(default)]

@@ -9,7 +9,8 @@ mod get_video;
 mod list_camera;
 mod list_events;
 mod list_recording;
-mod live;
+mod live_hls;
+mod live_mp4;
 
 async fn health() {}
 
@@ -26,8 +27,16 @@ pub fn route() -> Router {
             "/camera/:name/video/:filename",
             routing::get(get_video::get_video),
         )
-        .route("/camera/:name/live", routing::get(live::page))
-        .route("/camera/:name/live/:uuid/:path", routing::get(live::stream))
+        .route("/camera/:name/live_hls", routing::get(live_hls::page))
+        .route(
+            "/camera/:name/live_hls/:uuid/:path",
+            routing::get(live_hls::stream),
+        )
+        .route("/camera/:name/live_mp4", routing::get(live_mp4::page))
+        .route(
+            "/camera/:name/live_mp4/stream.mp4",
+            routing::get(live_mp4::stream),
+        )
         .route("/health", routing::get(health))
         .layer(LoggerLayer::new(LoggerConfig {
             log_level_filter: Arc::new(|x| {
