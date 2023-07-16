@@ -32,12 +32,11 @@ pub async fn modect_mp4(
             &dimension,
             "-framerate",
             &frame_rate,
-            "-",
             "-c:v",
             "h264",
             "-flags",
             "+cgop",
-            &frame_rate,
+            "-",
         ])
         .arg(destination)
         .stderr(Stdio::piped())
